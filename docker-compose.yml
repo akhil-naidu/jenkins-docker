@@ -1,0 +1,513 @@
+services:
+    auth:
+        depends_on:
+            graphql:
+                condition: service_started
+            postgres:
+                condition: service_healthy
+        environment:
+            AUTH_ANONYMOUS_USERS_ENABLED: "false"
+            AUTH_CLIENT_URL: http://localhost:3000
+            AUTH_DISABLE_NEW_USERS: "false"
+            AUTH_EMAIL_ENABLED: "false"
+            AUTH_EMAIL_PASSWORDLESS_ENABLED: "false"
+            AUTH_EMAIL_SIGNIN_EMAIL_VERIFIED_REQUIRED: "true"
+            AUTH_GRAVATAR_ENABLED: "true"
+            AUTH_HOST: 0.0.0.0
+            AUTH_LOCALE_ALLOWED: en
+            AUTH_LOCALE_DEFAULT: en
+            AUTH_PASSWORD_HIBP_ENABLED: "false"
+            AUTH_PASSWORD_MIN_LENGTH: "3"
+            AUTH_PROVIDER_APPLE_ENABLED: "false"
+            AUTH_PROVIDER_APPLE_SCOPE: name,email
+            AUTH_PROVIDER_BITBUCKET_ENABLED: "false"
+            AUTH_PROVIDER_FACEBOOK_ENABLED: "false"
+            AUTH_PROVIDER_FACEBOOK_SCOPE: email,photos,displayName
+            AUTH_PROVIDER_GITHUB_ENABLED: "false"
+            AUTH_PROVIDER_GITHUB_SCOPE: user:email
+            AUTH_PROVIDER_GITLAB_ENABLED: "false"
+            AUTH_PROVIDER_GITLAB_SCOPE: read_user
+            AUTH_PROVIDER_GOOGLE_ENABLED: "false"
+            AUTH_PROVIDER_GOOGLE_SCOPE: email,profile
+            AUTH_PROVIDER_LINKEDIN_ENABLED: "false"
+            AUTH_PROVIDER_LINKEDIN_SCOPE: r_emailaddress,r_liteprofile
+            AUTH_PROVIDER_SPOTIFY_ENABLED: "false"
+            AUTH_PROVIDER_SPOTIFY_SCOPE: user-read-email,user-read-private
+            AUTH_PROVIDER_STRAVA_ENABLED: "false"
+            AUTH_PROVIDER_TWILIO_ENABLED: "false"
+            AUTH_PROVIDER_TWITTER_ENABLED: "false"
+            AUTH_PROVIDER_WINDOWS_LIVE_ENABLED: "false"
+            AUTH_PROVIDER_WINDOWS_LIVE_SCOPE: wl.basic,wl.emails,wl.contacts_emails
+            AUTH_SERVER_URL: https://local.auth.nhost.run/v1
+            AUTH_SMS_ENABLED: "false"
+            AUTH_SMS_PASSWORDLESS_ENABLED: "false"
+            AUTH_SMTP_HOST: mailhog
+            AUTH_SMTP_PASS: password
+            AUTH_SMTP_PORT: "1025"
+            AUTH_SMTP_SECURE: "false"
+            AUTH_SMTP_SENDER: hasura-auth@example.com
+            AUTH_SMTP_USER: user
+            AUTH_TOKEN_ACCESS_EXPIRES_IN: "900"
+            AUTH_TOKEN_REFRESH_EXPIRES_IN: "43200"
+            AUTH_USER_ALLOWED_ROLES: user,me
+            AUTH_USER_DEFAULT_ALLOWED_ROLES: user,me
+            AUTH_USER_DEFAULT_ROLE: user
+            AUTH_USER_MFA_ENABLED: "false"
+            AUTH_USER_MFA_ISSUER: nhost
+            HASURA_GRAPHQL_ADMIN_SECRET: nhost-admin-secret
+            HASURA_GRAPHQL_DATABASE_URL: postgres://nhost_auth_admin@local.db.nhost.run:5432/postgres
+            HASURA_GRAPHQL_GRAPHQL_URL: http://graphql:8080/v1/graphql
+            HASURA_GRAPHQL_JWT_SECRET: '{"type":"HS256", "key": "0f987876650b4a085e64594fae9219e7781b17506bec02489ad061fba8cb22db"}'
+            NHOST_ADMIN_SECRET: nhost-admin-secret
+            NHOST_WEBHOOK_SECRET: nhost-webhook-secret
+        extra_hosts:
+            - host.docker.internal:host-gateway
+            - local.auth.nhost.run:host-gateway
+            - local.db.nhost.run:host-gateway
+            - local.functions.nhost.run:host-gateway
+            - local.graphql.nhost.run:host-gateway
+            - local.hasura.nhost.run:host-gateway
+            - local.storage.nhost.run:host-gateway
+        healthcheck:
+            test:
+                - CMD-SHELL
+                - wget http://localhost:4000/healthz -q -O - > /dev/null 2>&1
+            interval: 3s
+            start_period: 5m0s
+        image: nhost/hasura-auth:0.19.0
+        labels:
+            traefik.enable: "true"
+            traefik.http.middlewares.auth-cors.headers.accessControlAllowHeaders: '*'
+            traefik.http.middlewares.auth-cors.headers.accessControlAllowMethods: '*'
+            traefik.http.middlewares.auth-cors.headers.accessControlAllowOriginList: '*'
+            traefik.http.middlewares.http-auth-cors.headers.accessControlAllowHeaders: '*'
+            traefik.http.middlewares.http-auth-cors.headers.accessControlAllowMethods: '*'
+            traefik.http.middlewares.http-auth-cors.headers.accessControlAllowOriginList: '*'
+            traefik.http.middlewares.strip-auth.stripprefix.prefixes: /v1
+            traefik.http.middlewares.strip-http-auth.stripprefix.prefixes: /v1/auth
+            traefik.http.routers.auth.entrypoints: web-secure
+            traefik.http.routers.auth.middlewares: auth-cors@docker,strip-auth@docker
+            traefik.http.routers.auth.rule: Host(`local.auth.nhost.run`) && PathPrefix(`/v1`)
+            traefik.http.routers.auth.service: auth
+            traefik.http.routers.auth.tls: "true"
+            traefik.http.routers.http-auth.entrypoints: web
+            traefik.http.routers.http-auth.middlewares: http-auth-cors@docker,strip-http-auth@docker
+            traefik.http.routers.http-auth.rule: PathPrefix(`/v1/auth`)
+            traefik.http.routers.http-auth.service: http-auth
+            traefik.http.services.auth.loadbalancer.server.port: "4000"
+            traefik.http.services.http-auth.loadbalancer.server.port: "4000"
+        restart: always
+        volumes:
+            - type: bind
+              source: /Users/dev/Developer/Github/contentql/nhost-demo/demo/.nhost/custom
+              target: /app/custom
+            - type: bind
+              source: /Users/dev/Developer/Github/contentql/nhost-demo/demo/nhost/emails
+              target: /app/email-templates
+    dashboard:
+        environment:
+            NEXT_PUBLIC_NHOST_AUTH_URL: https://local.auth.nhost.run/v1
+            NEXT_PUBLIC_NHOST_FUNCTIONS_URL: https://local.functions.nhost.run/v1
+            NEXT_PUBLIC_NHOST_GRAPHQL_URL: https://local.graphql.nhost.run/v1
+            NEXT_PUBLIC_NHOST_HASURA_API_URL: https://local.hasura.nhost.run
+            NEXT_PUBLIC_NHOST_HASURA_CONSOLE_URL: https://local.hasura.nhost.run/console
+            NEXT_PUBLIC_NHOST_HASURA_MIGRATIONS_API_URL: http://localhost:9693
+            NEXT_PUBLIC_NHOST_STORAGE_URL: https://local.storage.nhost.run/v1
+        extra_hosts:
+            - host.docker.internal:host-gateway
+            - local.auth.nhost.run:host-gateway
+            - local.db.nhost.run:host-gateway
+            - local.functions.nhost.run:host-gateway
+            - local.graphql.nhost.run:host-gateway
+            - local.hasura.nhost.run:host-gateway
+            - local.storage.nhost.run:host-gateway
+        image: nhost/dashboard:0.13.9
+        ports:
+            - mode: ingress
+              target: 3000
+              published: "3030"
+              protocol: tcp
+    functions:
+        environment:
+            NHOST_ADMIN_SECRET: nhost-admin-secret
+            NHOST_AUTH_URL: https://local.auth.nhost.run/v1
+            NHOST_BACKEND_URL: http://traefik:1337
+            NHOST_FUNCTIONS_URL: https://local.functions.nhost.run/v1
+            NHOST_GRAPHQL_URL: https://local.graphql.nhost.run/v1
+            NHOST_HASURA_URL: https://local.hasura.nhost.run/console
+            NHOST_JWT_SECRET: '{"type":"HS256", "key": "0f987876650b4a085e64594fae9219e7781b17506bec02489ad061fba8cb22db"}'
+            NHOST_REGION: ""
+            NHOST_STORAGE_URL: https://local.storage.nhost.run/v1
+            NHOST_SUBDOMAIN: local
+            NHOST_WEBHOOK_SECRET: nhost-webhook-secret
+        extra_hosts:
+            - host.docker.internal:host-gateway
+            - local.auth.nhost.run:host-gateway
+            - local.db.nhost.run:host-gateway
+            - local.functions.nhost.run:host-gateway
+            - local.graphql.nhost.run:host-gateway
+            - local.hasura.nhost.run:host-gateway
+            - local.storage.nhost.run:host-gateway
+        healthcheck:
+            test:
+                - CMD-SHELL
+                - wget http://localhost:3000/healthz -q -O - > /dev/null 2>&1
+            interval: 1s
+            start_period: 30m0s
+        image: nhost/functions:0.1.8
+        labels:
+            traefik.enable: "true"
+            traefik.http.middlewares.functions-cors.headers.accessControlAllowHeaders: '*'
+            traefik.http.middlewares.functions-cors.headers.accessControlAllowMethods: '*'
+            traefik.http.middlewares.functions-cors.headers.accessControlAllowOriginList: '*'
+            traefik.http.middlewares.http-functions-cors.headers.accessControlAllowHeaders: '*'
+            traefik.http.middlewares.http-functions-cors.headers.accessControlAllowMethods: '*'
+            traefik.http.middlewares.http-functions-cors.headers.accessControlAllowOriginList: '*'
+            traefik.http.middlewares.strip-functions.stripprefix.prefixes: /v1
+            traefik.http.middlewares.strip-http-functions.stripprefix.prefixes: /v1/functions
+            traefik.http.routers.functions.entrypoints: web-secure
+            traefik.http.routers.functions.middlewares: functions-cors@docker,strip-functions@docker
+            traefik.http.routers.functions.rule: PathPrefix(`/v1`) && Host(`local.functions.nhost.run`)
+            traefik.http.routers.functions.service: functions
+            traefik.http.routers.functions.tls: "true"
+            traefik.http.routers.http-functions.entrypoints: web
+            traefik.http.routers.http-functions.middlewares: http-functions-cors@docker,strip-http-functions@docker
+            traefik.http.routers.http-functions.rule: PathPrefix(`/v1/functions`)
+            traefik.http.routers.http-functions.service: http-functions
+            traefik.http.services.functions.loadbalancer.server.port: "3000"
+            traefik.http.services.http-functions.loadbalancer.server.port: "3000"
+        restart: always
+        volumes:
+            - type: bind
+              source: ..
+              target: /opt/project
+            - type: volume
+              source: root_node_modules
+              target: /opt/project/node_modules
+            - type: volume
+              source: functions_node_modules
+              target: /opt/project/functions/node_modules
+    graphql:
+        depends_on:
+            postgres:
+                condition: service_healthy
+        environment:
+            HASURA_GRAPHQL_ADMIN_SECRET: nhost-admin-secret
+            HASURA_GRAPHQL_DATABASE_URL: postgres://nhost_hasura@local.db.nhost.run:5432/postgres
+            HASURA_GRAPHQL_DEV_MODE: "true"
+            HASURA_GRAPHQL_ENABLE_CONSOLE: "false"
+            HASURA_GRAPHQL_ENABLE_REMOTE_SCHEMA_PERMISSIONS: "true"
+            HASURA_GRAPHQL_ENABLE_TELEMETRY: "false"
+            HASURA_GRAPHQL_JWT_SECRET: '{"type":"HS256", "key": "0f987876650b4a085e64594fae9219e7781b17506bec02489ad061fba8cb22db"}'
+            HASURA_GRAPHQL_LOG_LEVEL: debug
+            HASURA_GRAPHQL_MIGRATIONS_SERVER_TIMEOUT: "20"
+            HASURA_GRAPHQL_NO_OF_RETRIES: "20"
+            HASURA_GRAPHQL_UNAUTHORIZED_ROLE: public
+            NHOST_ADMIN_SECRET: nhost-admin-secret
+            NHOST_AUTH_URL: https://local.auth.nhost.run/v1
+            NHOST_BACKEND_URL: http://traefik:1337
+            NHOST_FUNCTIONS_URL: https://local.functions.nhost.run/v1
+            NHOST_GRAPHQL_URL: https://local.graphql.nhost.run/v1
+            NHOST_HASURA_URL: https://local.hasura.nhost.run/console
+            NHOST_REGION: ""
+            NHOST_STORAGE_URL: https://local.storage.nhost.run/v1
+            NHOST_SUBDOMAIN: local
+            NHOST_WEBHOOK_SECRET: nhost-webhook-secret
+        extra_hosts:
+            - host.docker.internal:host-gateway
+            - local.auth.nhost.run:host-gateway
+            - local.db.nhost.run:host-gateway
+            - local.functions.nhost.run:host-gateway
+            - local.graphql.nhost.run:host-gateway
+            - local.hasura.nhost.run:host-gateway
+            - local.storage.nhost.run:host-gateway
+        image: hasura/graphql-engine:v2.15.2
+        labels:
+            traefik.enable: "true"
+            traefik.http.middlewares.console-redirect-hasura-cors.headers.accessControlAllowHeaders: '*'
+            traefik.http.middlewares.console-redirect-hasura-cors.headers.accessControlAllowMethods: '*'
+            traefik.http.middlewares.console-redirect-hasura-cors.headers.accessControlAllowOriginList: '*'
+            traefik.http.middlewares.graphql-cors.headers.accessControlAllowHeaders: '*'
+            traefik.http.middlewares.graphql-cors.headers.accessControlAllowMethods: '*'
+            traefik.http.middlewares.graphql-cors.headers.accessControlAllowOriginList: '*'
+            traefik.http.middlewares.hasura-cors.headers.accessControlAllowHeaders: '*'
+            traefik.http.middlewares.hasura-cors.headers.accessControlAllowMethods: '*'
+            traefik.http.middlewares.hasura-cors.headers.accessControlAllowOriginList: '*'
+            traefik.http.middlewares.http-graphql-cors.headers.accessControlAllowHeaders: '*'
+            traefik.http.middlewares.http-graphql-cors.headers.accessControlAllowMethods: '*'
+            traefik.http.middlewares.http-graphql-cors.headers.accessControlAllowOriginList: '*'
+            traefik.http.middlewares.redirect-console-redirect-hasura.redirectregex.regex: ^(.*)$$
+            traefik.http.middlewares.redirect-console-redirect-hasura.redirectregex.replacement: http://localhost:9695
+            traefik.http.middlewares.redirect-root-redirect-hasura.redirectregex.regex: ^(.*)$$
+            traefik.http.middlewares.redirect-root-redirect-hasura.redirectregex.replacement: http://localhost:9695
+            traefik.http.middlewares.replace-graphql-path.replacepath.path: /v1/graphql
+            traefik.http.middlewares.root-redirect-hasura-cors.headers.accessControlAllowHeaders: '*'
+            traefik.http.middlewares.root-redirect-hasura-cors.headers.accessControlAllowMethods: '*'
+            traefik.http.middlewares.root-redirect-hasura-cors.headers.accessControlAllowOriginList: '*'
+            traefik.http.routers.console-redirect-hasura.entrypoints: web-secure
+            traefik.http.routers.console-redirect-hasura.middlewares: console-redirect-hasura-cors@docker,redirect-console-redirect-hasura@docker
+            traefik.http.routers.console-redirect-hasura.rule: Host(`local.hasura.nhost.run`) && Method(`GET`) && Path(`/console`)
+            traefik.http.routers.console-redirect-hasura.service: console-redirect-hasura
+            traefik.http.routers.console-redirect-hasura.tls: "true"
+            traefik.http.routers.graphql.entrypoints: web-secure
+            traefik.http.routers.graphql.middlewares: graphql-cors@docker,replace-graphql-path@docker
+            traefik.http.routers.graphql.rule: PathPrefix(`/v1`) && Host(`local.graphql.nhost.run`)
+            traefik.http.routers.graphql.service: graphql
+            traefik.http.routers.graphql.tls: "true"
+            traefik.http.routers.hasura.entrypoints: web-secure
+            traefik.http.routers.hasura.middlewares: hasura-cors@docker
+            traefik.http.routers.hasura.rule: Host(`local.hasura.nhost.run`)
+            traefik.http.routers.hasura.service: hasura
+            traefik.http.routers.hasura.tls: "true"
+            traefik.http.routers.http-graphql.entrypoints: web
+            traefik.http.routers.http-graphql.middlewares: http-graphql-cors@docker
+            traefik.http.routers.http-graphql.rule: PathPrefix(`/v1/graphql`, `/v2/query`, `/v1/metadata`, `/v1/config`)
+            traefik.http.routers.http-graphql.service: http-graphql
+            traefik.http.routers.root-redirect-hasura.entrypoints: web-secure
+            traefik.http.routers.root-redirect-hasura.middlewares: root-redirect-hasura-cors@docker,redirect-root-redirect-hasura@docker
+            traefik.http.routers.root-redirect-hasura.rule: Host(`local.hasura.nhost.run`) && Method(`GET`) && Path(`/`)
+            traefik.http.routers.root-redirect-hasura.service: root-redirect-hasura
+            traefik.http.routers.root-redirect-hasura.tls: "true"
+            traefik.http.services.console-redirect-hasura.loadbalancer.server.port: "8080"
+            traefik.http.services.graphql.loadbalancer.server.port: "8080"
+            traefik.http.services.hasura.loadbalancer.server.port: "8080"
+            traefik.http.services.http-graphql.loadbalancer.server.port: "8080"
+            traefik.http.services.root-redirect-hasura.loadbalancer.server.port: "8080"
+        ports:
+            - mode: ingress
+              target: 8080
+              published: "8080"
+              protocol: tcp
+        restart: always
+    http-storage:
+        command:
+            - serve
+        environment:
+            API_ROOT_PREFIX: /v1/storage
+            BIND: :8576
+            DEBUG: "true"
+            HASURA_ENDPOINT: http://graphql:8080/v1
+            HASURA_GRAPHQL_ADMIN_SECRET: nhost-admin-secret
+            HASURA_GRAPHQL_JWT_SECRET: '{"type":"HS256", "key": "0f987876650b4a085e64594fae9219e7781b17506bec02489ad061fba8cb22db"}'
+            HASURA_METADATA: "1"
+            NHOST_ADMIN_SECRET: nhost-admin-secret
+            NHOST_JWT_SECRET: '{"type":"HS256", "key": "0f987876650b4a085e64594fae9219e7781b17506bec02489ad061fba8cb22db"}'
+            NHOST_WEBHOOK_SECRET: nhost-webhook-secret
+            POSTGRES_MIGRATIONS: "1"
+            POSTGRES_MIGRATIONS_SOURCE: postgres://nhost_storage_admin@local.db.nhost.run:5432/postgres?sslmode=disable
+            PUBLIC_URL: http://localhost:1337
+            S3_ACCESS_KEY: minioaccesskey123123
+            S3_BUCKET: nhost
+            S3_ENDPOINT: http://minio:9000
+            S3_SECRET_KEY: minioaccesskey123123
+            STORAGE_FORCE_DOWNLOAD_FOR_CONTENT_TYPES: text/html,application/javascript
+        extra_hosts:
+            - host.docker.internal:host-gateway
+            - local.auth.nhost.run:host-gateway
+            - local.db.nhost.run:host-gateway
+            - local.functions.nhost.run:host-gateway
+            - local.graphql.nhost.run:host-gateway
+            - local.hasura.nhost.run:host-gateway
+            - local.storage.nhost.run:host-gateway
+        image: nhost/hasura-storage:0.3.0
+        labels:
+            traefik.enable: "true"
+            traefik.http.middlewares.http-storage-cors.headers.accessControlAllowHeaders: '*'
+            traefik.http.middlewares.http-storage-cors.headers.accessControlAllowMethods: '*'
+            traefik.http.middlewares.http-storage-cors.headers.accessControlAllowOriginList: '*'
+            traefik.http.routers.http-storage.entrypoints: web
+            traefik.http.routers.http-storage.middlewares: http-storage-cors@docker
+            traefik.http.routers.http-storage.rule: PathPrefix(`/v1/storage`)
+            traefik.http.routers.http-storage.service: http-storage
+            traefik.http.services.http-storage.loadbalancer.server.port: "8576"
+        restart: always
+    mailhog:
+        environment:
+            SMTP_HOST: mailhog
+            SMTP_PASS: password
+            SMTP_PORT: "1025"
+            SMTP_SECURE: "false"
+            SMTP_SENDER: hasura-auth@example.com
+            SMTP_USER: user
+        extra_hosts:
+            - host.docker.internal:host-gateway
+            - local.auth.nhost.run:host-gateway
+            - local.db.nhost.run:host-gateway
+            - local.functions.nhost.run:host-gateway
+            - local.graphql.nhost.run:host-gateway
+            - local.hasura.nhost.run:host-gateway
+            - local.storage.nhost.run:host-gateway
+        image: mailhog/mailhog
+        ports:
+            - mode: ingress
+              target: 1025
+              published: "1025"
+              protocol: tcp
+            - mode: ingress
+              target: 8025
+              published: "8025"
+              protocol: tcp
+        restart: always
+        volumes:
+            - type: bind
+              source: data/main/mailhog
+              target: /maildir
+    minio:
+        command:
+            - server
+            - /data
+            - --address
+            - 0.0.0.0:9000
+            - --console-address
+            - 0.0.0.0:8484
+        environment:
+            MINIO_ROOT_PASSWORD: minioaccesskey123123
+            MINIO_ROOT_USER: minioaccesskey123123
+        extra_hosts:
+            - host.docker.internal:host-gateway
+            - local.auth.nhost.run:host-gateway
+            - local.db.nhost.run:host-gateway
+            - local.functions.nhost.run:host-gateway
+            - local.graphql.nhost.run:host-gateway
+            - local.hasura.nhost.run:host-gateway
+            - local.storage.nhost.run:host-gateway
+        image: minio/minio:RELEASE.2022-07-08T00-05-23Z
+        ports:
+            - mode: ingress
+              target: 9000
+              published: "9000"
+              protocol: tcp
+            - mode: ingress
+              target: 8484
+              protocol: tcp
+        restart: always
+        volumes:
+            - type: bind
+              source: data/main/minio
+              target: /data
+    postgres:
+        command:
+            - postgres
+            - -c
+            - config_file=/etc/postgresql.conf
+            - -c
+            - hba_file=/etc/pg_hba_local.conf
+        environment:
+            PGDATA: /var/lib/postgresql/data/pgdata
+            POSTGRES_DB: postgres
+            POSTGRES_PASSWORD: postgres
+            POSTGRES_USER: postgres
+        extra_hosts:
+            - host.docker.internal:host-gateway
+            - local.auth.nhost.run:host-gateway
+            - local.db.nhost.run:host-gateway
+            - local.functions.nhost.run:host-gateway
+            - local.graphql.nhost.run:host-gateway
+            - local.hasura.nhost.run:host-gateway
+            - local.storage.nhost.run:host-gateway
+        healthcheck:
+            test:
+                - CMD-SHELL
+                - pg_isready -U postgres -d postgres -q
+            interval: 3s
+            start_period: 2m0s
+        image: nhost/postgres:14.5-20230104-1
+        ports:
+            - mode: ingress
+              target: 5432
+              published: "5432"
+              protocol: tcp
+        restart: always
+        volumes:
+            - type: bind
+              source: data/main/db/pgdata
+              target: /var/lib/postgresql/data/pgdata
+            - type: bind
+              source: data/main/db/pg_hba_local.conf
+              target: /etc/pg_hba_local.conf
+    storage:
+        command:
+            - serve
+        environment:
+            API_ROOT_PREFIX: ""
+            BIND: :8576
+            DEBUG: "true"
+            HASURA_ENDPOINT: http://graphql:8080/v1
+            HASURA_GRAPHQL_ADMIN_SECRET: nhost-admin-secret
+            HASURA_GRAPHQL_JWT_SECRET: '{"type":"HS256", "key": "0f987876650b4a085e64594fae9219e7781b17506bec02489ad061fba8cb22db"}'
+            HASURA_METADATA: "1"
+            NHOST_ADMIN_SECRET: nhost-admin-secret
+            NHOST_JWT_SECRET: '{"type":"HS256", "key": "0f987876650b4a085e64594fae9219e7781b17506bec02489ad061fba8cb22db"}'
+            NHOST_WEBHOOK_SECRET: nhost-webhook-secret
+            POSTGRES_MIGRATIONS: "1"
+            POSTGRES_MIGRATIONS_SOURCE: postgres://nhost_storage_admin@local.db.nhost.run:5432/postgres?sslmode=disable
+            PUBLIC_URL: https://local.storage.nhost.run
+            S3_ACCESS_KEY: minioaccesskey123123
+            S3_BUCKET: nhost
+            S3_ENDPOINT: http://minio:9000
+            S3_SECRET_KEY: minioaccesskey123123
+            STORAGE_FORCE_DOWNLOAD_FOR_CONTENT_TYPES: text/html,application/javascript
+        extra_hosts:
+            - host.docker.internal:host-gateway
+            - local.auth.nhost.run:host-gateway
+            - local.db.nhost.run:host-gateway
+            - local.functions.nhost.run:host-gateway
+            - local.graphql.nhost.run:host-gateway
+            - local.hasura.nhost.run:host-gateway
+            - local.storage.nhost.run:host-gateway
+        image: nhost/hasura-storage:0.3.0
+        labels:
+            traefik.enable: "true"
+            traefik.http.middlewares.storage-cors.headers.accessControlAllowHeaders: '*'
+            traefik.http.middlewares.storage-cors.headers.accessControlAllowMethods: '*'
+            traefik.http.middlewares.storage-cors.headers.accessControlAllowOriginList: '*'
+            traefik.http.routers.storage.entrypoints: web-secure
+            traefik.http.routers.storage.middlewares: storage-cors@docker
+            traefik.http.routers.storage.rule: PathPrefix(`/v1`) && Host(`local.storage.nhost.run`)
+            traefik.http.routers.storage.service: storage
+            traefik.http.routers.storage.tls: "true"
+            traefik.http.services.storage.loadbalancer.server.port: "8576"
+        restart: always
+    traefik:
+        command:
+            - --api.insecure=true
+            - --providers.docker=true
+            - --providers.file.directory=/opt/traefik
+            - --providers.file.watch=true
+            - --providers.docker.exposedbydefault=false
+            - --providers.docker.constraints=Label(`com.docker.compose.project`,`demo-affectionate_dubinsky`)
+            - --entrypoints.web-secure.address=:443
+            - --entrypoints.web.address=:1337
+        extra_hosts:
+            - host.docker.internal:host-gateway
+            - local.auth.nhost.run:host-gateway
+            - local.db.nhost.run:host-gateway
+            - local.functions.nhost.run:host-gateway
+            - local.graphql.nhost.run:host-gateway
+            - local.hasura.nhost.run:host-gateway
+            - local.storage.nhost.run:host-gateway
+        image: traefik:v2.8
+        ports:
+            - mode: ingress
+              target: 1337
+              published: "1337"
+              protocol: tcp
+            - mode: ingress
+              target: 443
+              published: "443"
+              protocol: tcp
+            - mode: ingress
+              target: 8080
+              protocol: tcp
+        restart: always
+        volumes:
+            - type: bind
+              source: /var/run/docker.sock
+              target: /var/run/docker.sock
+              read_only: true
+            - type: bind
+              source: traefik
+              target: /opt/traefik
+volumes:
+    functions_node_modules: {}
+    root_node_modules: {}
